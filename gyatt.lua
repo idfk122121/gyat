@@ -4,6 +4,7 @@ local LocalPlayer = Players.LocalPlayer
 
 local ESPConnections = {}
 local Boxes = {} -- Store the created boxes
+local ESPEnabled = true -- Flag to track whether ESP is enabled or not
 
 local function createBox()
     local Outline = Drawing.new("Square")
@@ -43,31 +44,57 @@ end
 
 local function addESP(player)
     if player ~= LocalPlayer then
-        local character = player.Character or player.CharacterAdded:Wait()
-        local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
-        local Box, Outline = createBox()
-        
-        local connection
-        connection = RunService.RenderStepped:Connect(function()
-            if character and humanoidRootPart and player.Parent then
-                updateBox(Box, Outline, humanoidRootPart)
-            else
-                Box.Visible = false
-                Outline.Visible = false
-                if not player.Parent then
-                    connection:Disconnect()
-                    Box:Remove()
-                    Outline:Remove()
+        -- Check if ESP is enabled before adding the box
+        if ESPEnabled then
+            -- Check if the player's box is already created
+            for _, box in ipairs(Boxes) do
+                if box.Player == player then
+                    return -- Skip adding ESP for existing players
                 end
             end
-        end)
-        
-        table.insert(ESPConnections, connection) -- Store the connection for later cleanup
-        table.insert(Boxes, {Box, Outline}) -- Store the created box and outline
+
+            local character = player.Character or player.CharacterAdded:Wait()
+            local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+            local Box, Outline = createBox()
+            
+            local connection
+            connection = RunService.RenderStepped:Connect(function()
+                if character and humanoidRootPart and player.Parent then
+                    updateBox(Box, Outline, humanoidRootPart)
+                else
+                    Box.Visible = false
+                    Outline.Visible = false
+                    if not player.Parent then
+                        connection:Disconnect()
+                        Box:Remove()
+                        Outline:Remove()
+                        -- Remove from ESPConnections and Boxes tables
+                        for i, conn in ipairs(ESPConnections) do
+                            if conn == connection then
+                                table.remove(ESPConnections, i)
+                                break
+                            end
+                        end
+                        for i, b in ipairs(Boxes) do
+                            if b.Player == player then
+                                table.remove(Boxes, i)
+                                break
+                            end
+                        end
+                    end
+                end
+            end)
+            
+            table.insert(ESPConnections, connection) -- Store the connection for later cleanup
+            table.insert(Boxes, {Box = Box, Outline = Outline, Player = player}) -- Store the created box and outline
+        end
     end
 end
 
 local function toggleESP()
+    -- Toggle the ESP flag
+    ESPEnabled = not ESPEnabled
+
     -- Disconnect rendering connections
     for _, connection in ipairs(ESPConnections) do
         connection:Disconnect()
@@ -76,7 +103,7 @@ local function toggleESP()
     
     -- Make the boxes invisible
     for _, box in ipairs(Boxes) do
-        local Box, Outline = unpack(box)
+        local Box, Outline = box.Box, box.Outline
         Box.Visible = false
         Outline.Visible = false
     end
@@ -103,3 +130,7 @@ Players.PlayerRemoving:Connect(function(player)
         end
     end
 end)
+
+-- Toggle off ESP and make boxes invisible after 3 seconds
+wait(3)
+toggleESP()
