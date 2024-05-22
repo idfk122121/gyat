@@ -130,7 +130,3 @@ Players.PlayerRemoving:Connect(function(player)
         end
     end
 end)
-
--- Toggle off ESP and make boxes invisible after 3 seconds
-wait(3)
-toggleESP()
